@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="SHARED_NAME">TrueSignScannerSetting</string>
+    <string name="NAME_DM_REP">DataMatrixCodes</string>
+    <string name="DM_FILE_SUFFIX">.csv</string>
+    <string name="KEY_CURRENT_WRITING_PACK_NAME">writing_pack</string>
+</resources>

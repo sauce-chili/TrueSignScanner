@@ -29,7 +29,7 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@+id/space_toolbar"
-        android:background="#E2545454" />
+        android:background="@color/black" />
 
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton

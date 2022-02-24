@@ -37,6 +37,17 @@ public class PackAdapter extends RecyclerView.Adapter<PackViewHolder>
         this.selectedPack = new ArrayList<>();
     }
 
+    @Override
+    public void handleChanges(ArrayList<Pack> data) {
+        this.packageList.clear();
+        this.packageList = new ArrayList<>(data);
+        Log.d(TAG,"Sub date: " + packageList.toString());
+        if (updaterRecyclerView != null)
+            updaterRecyclerView.update();
+        else
+            this.notifyDataSetChanged();
+    }
+
     public interface OnUpdaterRecyclerView{
         void update();
     }
@@ -51,20 +62,6 @@ public class PackAdapter extends RecyclerView.Adapter<PackViewHolder>
         this.updaterRecyclerView.update();
     }
 
-    @Override
-    public void setData(ArrayList<Pack> data) {
-        //Log.d("update","update subscriber: " + data.toString());
-        //this.packageList = null;
-        this.packageList.clear();
-        this.packageList = new ArrayList<>(data);
-        Log.d("update","Sub date: " + packageList.toString());
-        if (updaterRecyclerView != null)
-            updaterRecyclerView.update();
-        else
-            this.notifyDataSetChanged();
-    }
-
-    @Override
     public ArrayList<Pack> getData() {
         return new ArrayList<>(this.packageList);
     }
@@ -72,10 +69,6 @@ public class PackAdapter extends RecyclerView.Adapter<PackViewHolder>
 
     public ArrayList<Pack> getSelectedPacks() {
         return selectedPack;
-    }
-
-    public void setSelectedPack(ArrayList<Pack> selectedPack) {
-        this.selectedPack = selectedPack;
     }
 
     public void setOnItemClickListener(onItemClickListener onItemClickListener) {

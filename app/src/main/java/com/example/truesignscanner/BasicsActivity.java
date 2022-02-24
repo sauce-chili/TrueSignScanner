@@ -7,10 +7,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
+import android.os.Bundle;
 import android.provider.Settings;
 import android.util.Log;
 import android.widget.Toast;
 
+
+import com.example.truesignscanner.Managers.GoogleDriveManager;
 import com.example.truesignscanner.Managers.PackManager;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -39,6 +42,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.core.app.TaskStackBuilder;
 
 
 import java.util.Collections;
@@ -49,7 +53,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public class BasicsActivity extends AppCompatActivity {
 
-    //protected GoogleSignInAccount userAcc;
     private static final String TAG_DEBUG = "BasicsActivity";
     private static final String TAG_AUTH_IN_ACC = "SignInGoogleAccount";
 
@@ -237,12 +240,17 @@ public class BasicsActivity extends AppCompatActivity {
         }
     }
 
-
     protected PackManager packManager;
 
-    public BasicsActivity(){
-        if (packManager == null) packManager = PackManager.getInstance(BasicsActivity.this);
-    }
+   @Override
+   protected void onCreate(Bundle savedInstanceState) {
+       super.onCreate(savedInstanceState);
+       if (packManager == null
+               && PermissionManager.checkReadStoragePermission(this)
+               && PermissionManager.checkWriteStoragePermission(this) ) {
+           packManager = PackManager.getInstance(getApplicationContext());
+       }
+   }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {

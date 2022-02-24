@@ -2,11 +2,10 @@ package com.example.truesignscanner.model;
 
 import androidx.annotation.NonNull;
 
-import com.example.truesignscanner.R;
-
 public class Pack {
     public String name;
-    public int counterRecord = 0;
+    public String numbersRecords = "0";
+    public String memorySize = "0Kb";
     public boolean isSelected = false;
     public boolean isVisibleRadioButton = false;
     public boolean isWritingPackage = false;
@@ -16,12 +15,18 @@ public class Pack {
         this.isWritingPackage = isWritingPackage;
     }
 
+    public Pack(String name, boolean isWritingPackage,String records, String memory){
+        this.name = name;
+        this.isWritingPackage = isWritingPackage;
+        this.numbersRecords = records;
+        this.memorySize = memory;
+    }
+
     public Pack(Pack p) {
         this.name = p.name;
         this.isWritingPackage = p.isWritingPackage;
-        this.counterRecord = p.counterRecord;
+        this.numbersRecords = p.numbersRecords;
         this.isSelected = p.isSelected;
-        this.isVisibleRadioButton = p.isVisibleRadioButton;
     }
 
     @Override
@@ -30,16 +35,16 @@ public class Pack {
         final Pack that = (Pack) obj;
         return this.name.equals(that.name)
                 && this.isWritingPackage == that.isWritingPackage
-                && this.counterRecord == that.counterRecord;
+                && this.numbersRecords.equals(that.numbersRecords)
+                && this.memorySize.equals(that.memorySize);
     }
 
     @NonNull
     @Override
     public String toString() {
         return "{" + "name: " + name + "; "
-                + "counterRecords: " + counterRecord + "; "
+                + "counterRecords: " + numbersRecords + "; "
                 + "isSelected: " + isSelected + ";"
-                + "isVisibleRadioButton: " + isVisibleRadioButton + ";"
                 + "isWritingPackage: " + isWritingPackage + "}";
     }
 }

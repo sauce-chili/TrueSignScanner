@@ -1,6 +1,5 @@
 package com.example.truesignscanner.Interfaces;
 
-public interface Subscriber<T>{
-    T getData();
-    void setData(T data);
+public interface Subscriber<T> {
+    void handleChanges(T data);
 }

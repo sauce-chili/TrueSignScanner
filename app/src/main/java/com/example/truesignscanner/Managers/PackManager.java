@@ -2,6 +2,7 @@ package com.example.truesignscanner.Managers;
 
 import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.os.Environment;
@@ -10,332 +11,178 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 
+import com.example.truesignscanner.DMRepWorker;
+import com.example.truesignscanner.DMRepository;
+import com.example.truesignscanner.Interfaces.Repository;
+import com.example.truesignscanner.Interfaces.RepositoryWorker;
+import com.example.truesignscanner.R;
 import com.example.truesignscanner.model.Pack;
-import com.example.truesignscanner.Interfaces.Publisher;
-import com.example.truesignscanner.Interfaces.Subscriber;
 
 import java.io.File;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Scanner;
 
-public class PackManager extends Thread implements Publisher<ArrayList<Pack>> {
+public class PackManager {
     private final static String TAG = "PackManager";
-    private final static String SHARED_NAME = "PACK_MANAGER";
-    private final static String KEY_CURRENT_WRITING_PACK_NAME = "writing_pack";
-    private static PackManager Instance;
-    private final String NAME_DIR = "DataMatrixCodes";
-    private final String FILE_SUFFIX = ".csv";
-    private Activity activity;
-    private File dir;
-    // For observer
-    private ArrayList<Subscriber<ArrayList<Pack>>> subs;
-    private ArrayList<Pack> data;
-    // For upload selected Pack
+
+
+    Repository repository;
+    RepositoryWorker repWorker;
     GoogleDriveManager googleDriveManager;
 
-    private PackManager(Activity activity) {
-        this.activity = activity;
-        subs = new ArrayList<>();
-        data = new ArrayList<>();
-//        Log.d("update","PackManager is create with data: " + data.toString());
+    private static PackManager Instance;
+
+    private Context context;
+
+
+    private PackManager(Context cnt) {
+        this.context = cnt;
+
+
+        String nameRep = context.getResources().getString(R.string.NAME_DM_REP);
+        String fileSuffix = context.getResources().getString(R.string.DM_FILE_SUFFIX);
+
+        repository = new DMRepository(
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ?
+                        context.getExternalFilesDir(null) :
+                        Environment.getExternalStorageDirectory(),
+                nameRep,
+                fileSuffix
+
+        );
+        repWorker = new DMRepWorker();
+
+        googleDriveManager = new GoogleDriveManager(context,nameRep);
     }
 
-    public static PackManager getInstance(Activity activity) {
-        if (Instance == null){
-            Instance = new PackManager(activity);
+    public static PackManager getInstance(Context cnt) {
+        if (Instance == null) {
+            Instance = new PackManager(cnt);
         }
         return Instance;
     }
 
-    public File getDir(){
-        return dir;
+    public void setCurrentContext(Context cnt) {
+        this.context = cnt;
     }
 
-    @Override
-    public ArrayList<Pack> getData() {
-        return this.data;
+    public RepositoryWorker getRepWorker() {
+        return repWorker;
     }
 
-    @Override
-    public void setData(ArrayList<Pack> data) {
-//        Log.d("update","new Publisher data: " + d.toString());
-        this.data = new ArrayList<>(data);
-//        Log.d("update","current Publisher date: " + data.toString());
-        this.notifyDataChange();
+    public String getPathToRepository() {
+        return repository.getRepository().getAbsolutePath() + File.separator;
     }
 
-    @Override
-    public void notifyDataChange() {
-        if (this.subs != null) {
-//            Log.d("update","subs list: " + subs.toString());
-            if (!subs.isEmpty()){
-                for (Subscriber<ArrayList<Pack>> sub : subs) {
-                    sub.setData(new ArrayList<>(this.data));
-                }
-            }
-            else{
-//                Log.d("update","sub list is empty.");
-            }
+    private String getDataFromPack(String fileName) {
+        if (fileName.equals("")) {
+            // TODO тост об некоректом имене
         }
+        String pathToFile = repository.getPathToFile(fileName);
+        return repWorker
+                .read(pathToFile)
+                .addOnFailureListener(e -> {
+                    // TODO обработка ошибки
+                })
+                .getResult();
     }
 
-    @Override
-    public void subscribe(Subscriber<ArrayList<Pack>> sub) {
-        if (subs != null) {
-//            Log.d("update","new subscriber: "  + sub.toString());
-//            Log.d("update","subscriber data: " + sub.getData().toString());
-//            Log.d("update","Publisher data: " + data.toString());
-            if (!this.data.equals(sub.getData())) {
-//                Log.d("update","publisher data and sub date isn't equal.New sub data : " + data.toString());
-                sub.setData(new ArrayList<>(this.data));
-            }
-            this.subs.add(sub);
-//            Log.d("update","new sub list:" + subs.toString());
+    private void addRecordInPackage(String data,String fileName){
+        if(fileName.equals("")){
+            // TODO файл не выбран
         }
+        String pathToFile = repository.getPathToFile(fileName);
+        repWorker.write(data, pathToFile)
+                .addOnFailureListener(e -> {
+                   // TODO тост об ошибке
+                });
     }
 
-    @Override
-    public void unsubscribe(Subscriber<ArrayList<Pack>> sub) {
-        if (subs != null)
-            this.subs.remove(sub);
-    }
+    public void addRecordInWritingPackage(String data) {
 
-    public void setCurrentActivity(Activity activity) {
-        this.activity = activity;
-    }
+        String nameWritingPack = getWritingPackageName();
 
-    protected synchronized String readFromPackage(String fileName){
-        StringBuilder data = new StringBuilder();
-        if(!fileName.equals("")){
-            String folder = dir.getAbsolutePath() + File.separator + fileName + FILE_SUFFIX;
-
-            try(FileReader fr = new FileReader(folder)) {
-                Scanner sc = new Scanner(fr);
-
-                while (sc.hasNextLine()){
-                    data.append(sc.nextLine()).append("\n");
-                }
-                fr.close();
-            }catch (IOException e){
-                e.printStackTrace();
-            }
+        if (nameWritingPack.equals("")) {
+            // TODO тост о невыбранном пакете
         }
-        Log.d("MatrixR",data.toString());
-        return data.toString();
-    }
 
-    public synchronized void writeInWritingPackage(String data){
-         /*
-          * проверка на специальный DataMatrix символ,
-          * байт-код значение которого равно 29.
-          */
-        Log.d("MatrixWR",data);
-        if((byte)data.charAt(0) == 29){
-            String nameWritingPack = getWritingPackageName();
-            Log.d("MatrixWR","Datamatrix has a special char");
-            Log.d("MatrixWR","current wr pack name: " + nameWritingPack);
-            if(!nameWritingPack.equals("")){
-                Log.d("MatrixWR","valid name pack(!= '')");
-                String folder = dir.getAbsolutePath() + File.separator +
-                        nameWritingPack + FILE_SUFFIX;
-                try(FileWriter fw = new FileWriter(folder,true)) {
-                    Log.d("MatrixWR","Read data from selected pack");
-                    String dataWritingPack = readFromPackage(nameWritingPack);
-                    if(dataWritingPack != null){
-                        Log.d("MatrixWR","not null");
-                        List<String> d = Arrays.asList(dataWritingPack.split("\n"));
-                        Log.d("MatrixWR","data for current wr pack: " + d.toString());
-                        if(!d.contains(data)){
-                            Toast.makeText(activity.getApplicationContext(),
-                                    "Данные записаны в пакет " + nameWritingPack,
-                                    Toast.LENGTH_SHORT).show();
-                            Log.d("MatrixWR","scanned data isn't contains in current wr pack");
-                            fw.write(data + "\n");
-                            Log.d("MatrixWR","Data was recorded in current wr pack");
-                        }else{
-                            Toast.makeText(activity.getApplicationContext(),
-                                    "Данный код уже занесён в пакет",
-                                    Toast.LENGTH_SHORT).show();
-                            Log.d("MatrixWR","Such data also contains");
-                        }
-                    }
-                    fw.flush();
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }else{
-                Toast.makeText(activity.getApplicationContext(),
-                        "Не выбран пакет для записи",
-                        Toast.LENGTH_LONG).show();
-            }
-        }else {
-            Toast.makeText(activity.getApplicationContext(),
-                    "Invalid DataMatrix code",
-                    Toast.LENGTH_SHORT).show();
-        }
+        this.addRecordInPackage(data,nameWritingPack);
+
     }
 
     public void setWritingPackageName(String name) {
-        SharedPreferences.Editor editor = activity.getSharedPreferences(SHARED_NAME, activity.MODE_PRIVATE)
+        SharedPreferences.Editor editor = context
+                .getSharedPreferences(context.getResources().getString(R.string.SHARED_NAME), context.MODE_PRIVATE)
                 .edit();
-        editor.putString(KEY_CURRENT_WRITING_PACK_NAME, name);
+        editor.putString(context.getResources().getString(R.string.KEY_CURRENT_WRITING_PACK_NAME), name);
         editor.apply();
-        Log.d("WritingPack","currently set name wr pack: " + name);
+        Log.d("WritingPack", "currently set name wr pack: " + name);
     }
 
     public String getWritingPackageName() {
-        SharedPreferences prefs = activity.getSharedPreferences(SHARED_NAME,
-                activity.MODE_PRIVATE);
-        return prefs.getString(KEY_CURRENT_WRITING_PACK_NAME, "");
+        return context
+                .getSharedPreferences(context.getResources().getString(R.string.SHARED_NAME), context.MODE_PRIVATE)
+                .getString(context.getResources().getString(R.string.KEY_CURRENT_WRITING_PACK_NAME), "");
     }
 
-    public void uploadPack(ArrayList<Pack> selectedPacks){
-        ProgressDialog progressDialog = new ProgressDialog(activity);
-        activity.runOnUiThread(() -> {
-            progressDialog.setTitle("Обновление данных на GDrive");
-            progressDialog.setMessage("Загрузка..");
-            progressDialog.show();
-        });
 
-        if (googleDriveManager == null)
-            googleDriveManager = new GoogleDriveManager(activity,FILE_SUFFIX,NAME_DIR);
-
-        for(Pack pack : selectedPacks){
-            googleDriveManager.createPack(pack.name,dir)
-            .addOnSuccessListener(s -> {
-                activity.runOnUiThread(progressDialog::dismiss);
-                Toast.makeText(activity.getApplicationContext(),
-                        "Пакет " + pack.name + " выгружен успешно",
-                        Toast.LENGTH_SHORT).show();
-                Log.d("GDrive upload","Pack " + pack.name + " was uploaded successful. " + s);
-            })
-            .addOnFailureListener(e -> {
-                e.printStackTrace();
-                activity.runOnUiThread(progressDialog::dismiss);
-                Toast.makeText(activity.getApplicationContext(),
-                        "Не удалось выгрузить пакет " + pack.name,
-                        Toast.LENGTH_SHORT).show();
-                Log.d("GDRive upload","Pack " + pack.name + " was uploaded unsuccessful");
-            });
-        }
-    }
-
-    public void createPackage(ArrayList<String> fileNames) {
-        Log.d("Create new files: ", fileNames.toString());
-        new Thread(){
-            @Override
-            public void run() {
-                try {
-                    for(String fileName : fileNames){
-                        new File(dir.getAbsolutePath() + File.separator + fileName + FILE_SUFFIX).createNewFile();
-                        Log.d(TAG, "Create file " + dir.getAbsolutePath() + File.separator + fileName + FILE_SUFFIX);
-                        sleep(10);
-                    }
-                } catch (Exception e) {
-                    Log.d(TAG, e.getMessage());
-                }
-                super.run();
-            }
-        }.start();
+    public void createPackage(String fileName) {
+            String pathToFile = repository.getPathToFile(fileName);
+//            csvFileManager.createCSVFile(pathToFile);
+            repository.create(pathToFile);
     }
 
     public void deletePackage(@NonNull ArrayList<String> fileNames) {
-        Log.d("Delete file","File names: "+ fileNames.toString());
-        new Thread(){
-            @Override
-            public void run() {
-                try {
-                    for (String fileName : fileNames) {
-                        if(fileName.equals(getWritingPackageName())){
-                            setWritingPackageName("");
-                        }
-
-                        new File(dir.getAbsolutePath() + File.separator + fileName + FILE_SUFFIX).delete();
-                        Log.d(TAG, "Delete file " + dir.getAbsolutePath() + File.separator + fileName + FILE_SUFFIX);
-                        sleep(10);
-                    }
-
-                } catch (Exception e) {
-                    Log.d(TAG, e.getMessage());
-                }
-                super.run();
+        Log.d("Delete file", "File names: " + fileNames.toString());
+        ArrayList<String> pathsToFiles = new ArrayList<>();
+        for (String fileName : fileNames) {
+            if (fileName.equals(getWritingPackageName())) {
+                setWritingPackageName("");
             }
 
-        }.start();
+            String pathToFolder = repository.getPathToFile(fileName);
+
+            pathsToFiles.add(pathToFolder);
+        }
+//        csvFileManager.deleteCSVFile(pathsToFiles);
+        repository.delete(pathsToFiles);
     }
 
-    @Override
-    public synchronized void start() {
-        //Toast.makeText(activity.getApplicationContext(), "Thread start", Toast.LENGTH_LONG).show();
+    public void uploadPacks(ArrayList<String> filesName) {
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q){
-            dir = new File(activity.getExternalFilesDir(null) + File.separator + NAME_DIR);
-        }else {
-            dir = new File(Environment.getExternalStorageDirectory() + File.separator + NAME_DIR);
-        }
-        if (!dir.exists()) {
-            Log.d(TAG, "Dir is create");
-            dir.mkdir();
-        } else {
-            Log.d(TAG, "Dir " + dir.toString() + " is also exists");
-        }
-        super.start();
-    }
+//        ProgressDialog progressDialog = new ProgressDialog(context);
+//        activity.runOnUiThread(() -> {
+//            progressDialog.setTitle("Обновление данных на GDrive");
+//            progressDialog.setMessage("Загрузка..");
+//            progressDialog.show();
+//        });
 
-    @Override
-    public void run() {
-        // хранилище для имеющиеся в данный момент файлов;
-        ArrayList<Pack> currentPackages = new ArrayList<>();
-        Pack currentWritingPackage = null;
-        for (; ; ) {
-            try {
-                if (dir.isDirectory()) {
-                    //Log.d(TAG, Arrays.toString(Objects.requireNonNull(dir.listFiles())));
-                    // имеющиеся в данный момент файлы;
-                    for (File file : Objects.requireNonNull(dir.listFiles())) {
-                        if (file.isFile()) {
-                            // имя csv файла
-                            String namePack = file.getName().split("\\.")[0];
 
-                            Pack p = new Pack(namePack,
-                                    namePack.equals(getWritingPackageName()));
+        for (String name : filesName) {
 
-                            if (p.isWritingPackage) {
-                                currentWritingPackage = new Pack(p);
-                            } else {
-                                currentPackages.add(p);
-                            }
-                        }
-                    }
-                    if (currentWritingPackage != null) {
-                        currentPackages.add(currentWritingPackage);
-                    }
-                    Collections.reverse(currentPackages);
-//                        Log.d("update","Data: " + this.getData().toString());
-//                        Log.d("update","Current: " + currentPackages.toString());
-                    if (!this.data.equals(currentPackages)) {
-                        Log.d("update","current data after valid:" + currentPackages.toString());
-                        this.setData(new ArrayList<Pack>(currentPackages));
-                    }
+            String pathToFile = repository.getPathToFile(name);
 
-                    currentPackages.clear();
-                    currentWritingPackage = null;
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            try {
-                Thread.sleep(500);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
+            googleDriveManager.createPack(pathToFile)
+
+                    .addOnSuccessListener(s -> {
+
+//                        activity.runOnUiThread(progressDialog::dismiss);
+//                        Toast.makeText(activity.getApplicationContext(),
+//                                "Пакет " + name + " выгружен успешно",
+//                                Toast.LENGTH_SHORT).show();
+//                        Log.d("GDrive upload", "Pack " + name + " was uploaded successful. " + s);
+
+                    })
+                    .addOnFailureListener(e -> {
+
+                        e.printStackTrace();
+//                        activity.runOnUiThread(progressDialog::dismiss);
+//                        Toast.makeText(activity.getApplicationContext(),
+//                                "Не удалось выгрузить пакет " + name,
+//                                Toast.LENGTH_SHORT).show();
+//                        Log.d("GDRive upload", "Pack " + name + " was uploaded unsuccessful");
+
+                    });
         }
     }
 }
+

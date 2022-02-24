@@ -1,6 +1,7 @@
 package com.example.truesignscanner.Managers;
 
 import android.app.Activity;
+import android.content.Context;
 import android.util.Log;
 
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -23,21 +24,20 @@ import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 
-class GoogleDriveManager{
+public class GoogleDriveManager{
     private final Executor mExecutor;
-    private  final String FILE_SUFFIX;
     private final String DRIVER_DIR_NAME;
     private final String MEDIA_TYPE = "text/csv";
-    private final Activity activity;
-    private final String DEBUG = "GDrive";
+    private final Context context;
+    private final String TAG = "GDrive";
 
 
     private Drive getGoogleDriveService() throws NullPointerException{
         GoogleAccountCredential credential = GoogleAccountCredential
-                .usingOAuth2(activity.getBaseContext(),
+                .usingOAuth2(context,
                         Collections.singleton(DriveScopes.DRIVE));
 
-        GoogleSignInAccount signInAccount = GoogleSignIn.getLastSignedInAccount(activity.getApplicationContext());
+        GoogleSignInAccount signInAccount = GoogleSignIn.getLastSignedInAccount(context);
 
         if (signInAccount == null)
             throw new NullPointerException("GoogleSignIn.getLastSignedInAccount() return is null." +
@@ -76,7 +76,7 @@ class GoogleDriveManager{
 
                 // если директория отсутствует
                 if (fileList.size() == 0) {
-                    Log.d(DEBUG,"GDrive dir is not exists");
+                    Log.d(TAG,"GDrive dir is not exists");
                     return null;
                 }
 
@@ -91,7 +91,7 @@ class GoogleDriveManager{
     }
 
     private String createDriveDir(Drive GDriveService) throws IOException {
-        Log.d(DEBUG,"create GDrive dir");
+        Log.d(TAG,"create GDrive dir");
         File PathMetadata = new File()
                 .setName(DRIVER_DIR_NAME)
                 .setFolderColorRgb("#FFEB3B")
@@ -104,10 +104,9 @@ class GoogleDriveManager{
         return GPath.getId();
     }
 
-    public GoogleDriveManager(Activity activity,String fs,String workingDirName){
-        this.activity = activity;
+    public GoogleDriveManager(Context cnt,String workingDirName){
+        this.context = cnt;
         this.mExecutor = Executors.newSingleThreadExecutor();
-        this.FILE_SUFFIX = fs;
         this.DRIVER_DIR_NAME = workingDirName;
     }
 
@@ -145,10 +144,14 @@ class GoogleDriveManager{
         return this.getFileList(fileName) != null;
     }
 
-    public Task<String> createPack(String fileName, java.io.File dir){
+    public Task<String> createPack(String pathToFile){
         Drive mDriveService = this.getGoogleDriveService();
 
-        return Tasks.call(mExecutor,() ->{
+        java.io.File mFile = new java.io.File(pathToFile);
+
+        String fileName = mFile.getName().split("\\.")[0];
+
+        return Tasks.call(mExecutor,() -> {
 
             // id директории на Gdisk,куда выгружаются данные
             String idDirGoogleDrive = this.getIdDriveDir(mDriveService);
@@ -158,10 +161,10 @@ class GoogleDriveManager{
                 idDirGoogleDrive = this.createDriveDir(mDriveService);
             }
             if(this.isFileExists(fileName)){
-                Log.d(DEBUG,"file with such name already exists");
+                Log.d(TAG,"file with such name already exists");
                 for(File file : this.getFileList(fileName)){
                     this.deleteFileById(file.getId());
-                    Log.d(DEBUG,"file was delete");
+                    Log.d(TAG,"file was delete");
                 }
             }
             // создание метаданных для GDrive
@@ -169,16 +172,13 @@ class GoogleDriveManager{
                     .setName(fileName)
                     .setParents(Collections.singletonList(idDirGoogleDrive));
 
-            java.io.File mFile = new java.io.File(dir.getAbsolutePath() +
-                    java.io.File.separator + fileName + FILE_SUFFIX);
-
             FileContent mediaContent = new FileContent(MEDIA_TYPE, mFile);
             File Gfile = mDriveService.files()
                     .create(GFileMetadata, mediaContent)
                     .setFields("id, parents")
                     .execute();
 
-            Log.d(DEBUG,"Create file on GDrive");
+            Log.d(TAG,"Create file on GDrive");
 
             return Gfile.getId();
         });

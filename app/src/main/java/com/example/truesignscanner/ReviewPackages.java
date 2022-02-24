@@ -18,6 +18,7 @@ import android.widget.ImageView;
 import android.widget.Toast;
 
 import com.example.truesignscanner.Interfaces.Event;
+import com.example.truesignscanner.Managers.GoogleDriveManager;
 import com.example.truesignscanner.adapter.PackAdapter;
 import com.example.truesignscanner.model.Pack;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
@@ -29,13 +30,16 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.stream.Stream;
 
 
 public class ReviewPackages extends BasicsActivity {
 
     private RecyclerView rvPackages;
     // private ArrayList<Pack> selectedPack;
+    GoogleDriveManager googleDriveManager;
     private EventHandler eventHandler;
+    private UpdaterReviewActivity UiUpdater;
     private PackAdapter adapter;
     private FloatingActionButton addBtn;
     private static final String TAG_DEBUG = "ReviewActivity";
@@ -49,11 +53,10 @@ public class ReviewPackages extends BasicsActivity {
         ADD_PACK,
         NON_ACTION;
     }
-
+    private EventType currentEventType = EventType.NON_ACTION;
     private class EventHandler{
 
         private HashMap<EventType, Event> EventList;
-        private EventType currentEventType;
         private static final String TAG_DEBUG = "EventHandler";
 
         @RequiresApi(api = Build.VERSION_CODES.N)
@@ -66,7 +69,11 @@ public class ReviewPackages extends BasicsActivity {
                 if (PermissionManager.checkInternetPermission(ReviewPackages.this)) {
                     if (PermissionManager.checkSignInAccount(ReviewPackages.this)) {
                         Log.d("SignInAcc","User is already signed in acc");
-                        packManager.uploadPack(adapter.getSelectedPacks());
+
+                        ArrayList<String> namesSelectedPacks = new ArrayList<>();
+                        for(Pack p: adapter.getSelectedPacks()){ namesSelectedPacks.add(p.name); }
+
+                        packManager.uploadPacks(namesSelectedPacks);
                     }else{
                         PermissionManager.requestSignInGoogleAccount(ReviewPackages.this);
                     }
@@ -79,7 +86,7 @@ public class ReviewPackages extends BasicsActivity {
 
             EventList.put(EventType.DELETE, () -> {
 
-                Log.d(TAG_DEBUG,"Delete selected pack");
+                Log.d(TAG_DEBUG,"Delete selected pack :" + adapter.getSelectedPacks());
                 ArrayList<String> filenames = new ArrayList<>();
                 for(Pack pack : adapter.getSelectedPacks()){
                     filenames.add(pack.name);
@@ -104,12 +111,11 @@ public class ReviewPackages extends BasicsActivity {
 
                 builder.setPositiveButton("Ok", (dialog, which) -> {
 
-                    Log.d("Create new file",Boolean.toString(title == null));
                     // assert title != null;
                     String namePack = title.getText().toString();
-                    ArrayList<String> filesName = new ArrayList<>();
-                    filesName.add(namePack);
-                    packManager.createPackage(filesName);
+
+                    packManager.createPackage(namePack);
+
                     Toast.makeText(getApplicationContext(),
                             ("Пакет " + namePack + " создан"), Toast.LENGTH_SHORT).show();
                     dialog.dismiss();
@@ -139,7 +145,7 @@ public class ReviewPackages extends BasicsActivity {
                 if(!isSelectAll)
                     selectedPack.clear();
                 adapter.notifyDataSetChanged();
-                Log.d("Click","Selected pack:" + selectedPack.toString());
+
 
             });
 
@@ -150,9 +156,9 @@ public class ReviewPackages extends BasicsActivity {
                 adapter.setOnItemClickListener(((viewHolder, pack) -> {
                     Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
                     intent.addCategory(Intent.CATEGORY_OPENABLE);
-                    Log.d("Click",packManager.getDir().getAbsolutePath());
+                    Log.d("Click",packManager.getPathToRepository());
                     Uri uri = Uri.parse(
-                            packManager.getDir().getAbsolutePath()
+                            packManager.getPathToRepository()
                                     + File.separator + pack.name + ".csv"
                     );
                     intent.setDataAndType(uri, "*/*");
@@ -169,16 +175,12 @@ public class ReviewPackages extends BasicsActivity {
                     }
                     return true;
                 }));
-                adapter.notifyDataSetChanged();
+                runOnUiThread(() -> adapter.notifyDataSetChanged());
             });
         }
 
-        public void setCurrentEventType(EventType type){
-            this.currentEventType = type;
-        }
-
-        public void handleCurrentEvent(){
-            this.EventList.get(this.currentEventType).handle();
+        public void handleCurrentEvent(EventType type){
+            EventList.get(type).handle();
         }
     }
 
@@ -197,9 +199,8 @@ public class ReviewPackages extends BasicsActivity {
         if (selectedPack == null)   throw new NullPointerException("selectedPack is null");
 
         selectedPack.clear();
-        for(Pack p : packagesList){
-            p.isVisibleRadioButton = true;
-        }
+        packagesList.forEach((Pack p) -> p.isVisibleRadioButton = true);
+
         adapter.setOnItemClickListener((viewHolder, pack) -> {
 
             pack.isSelected = !pack.isSelected;
@@ -220,19 +221,23 @@ public class ReviewPackages extends BasicsActivity {
     }
 
     private void deactivateSelectionMode(){
+
         findViewById(R.id.select_toolbar).setVisibility(View.GONE);
         findViewById(R.id.toolbar).setVisibility(View.VISIBLE);
+
         ArrayList<Pack> packagesList = adapter.getData();
         ArrayList<Pack> selectedPack = adapter.getSelectedPacks();
+
         if (packagesList == null || selectedPack == null) return;
-        for(Pack p : packagesList){
+
+        packagesList.forEach((Pack p) -> {
             p.isVisibleRadioButton = false;
             p.isSelected = false;
-        }
+        });
+
         selectedPack.clear();
 
-        this.eventHandler.setCurrentEventType(EventType.NON_ACTION);
-        this.eventHandler.handleCurrentEvent();
+        this.eventHandler.handleCurrentEvent(EventType.NON_ACTION);
         addBtn.setVisibility(View.VISIBLE);
         Log.d("OFF selected mode","current data: " + packagesList);
         runOnUiThread(() -> adapter.notifyDataSetChanged());
@@ -242,7 +247,7 @@ public class ReviewPackages extends BasicsActivity {
         ImageView icUpload = findViewById(R.id.ic_upload);
         icUpload.setOnClickListener(v -> {
 
-            this.eventHandler.setCurrentEventType(EventType.UPlOAD);
+            this.currentEventType = EventType.UPlOAD;
             activateSelectionMode();
 
         });
@@ -250,7 +255,7 @@ public class ReviewPackages extends BasicsActivity {
         ImageView icDelete = findViewById(R.id.ic_delete);
         icDelete.setOnClickListener(v -> {
 
-            this.eventHandler.setCurrentEventType(EventType.DELETE);
+            this.currentEventType = EventType.DELETE;
             activateSelectionMode();
 
         });
@@ -261,7 +266,7 @@ public class ReviewPackages extends BasicsActivity {
         icAgree.setOnClickListener(v -> {
 
             Log.d("Click","Click on btn agree.");
-            eventHandler.handleCurrentEvent();
+            eventHandler.handleCurrentEvent(currentEventType);
         });
 
         ImageView icCancel = findViewById(R.id.ic_cancel);
@@ -274,31 +279,34 @@ public class ReviewPackages extends BasicsActivity {
 
         ImageView icSelectAll = findViewById(R.id.ic_selectAll);
         icSelectAll.setOnClickListener(v -> {
-            this.eventHandler.setCurrentEventType(EventType.SELECT_ALL);
-            this.eventHandler.handleCurrentEvent();
+
+            this.eventHandler.handleCurrentEvent(EventType.SELECT_ALL);
+
         });
     }
 
     private void bindAddButton(){
         addBtn = findViewById(R.id.ic_add);
         addBtn.setOnClickListener(v -> {
-            this.eventHandler.setCurrentEventType(EventType.ADD_PACK);
-            this.eventHandler.handleCurrentEvent();
-            this.eventHandler.setCurrentEventType(EventType.NON_ACTION);
+
+            this.eventHandler.handleCurrentEvent(EventType.ADD_PACK);
+            this.currentEventType = EventType.NON_ACTION;
+
         });
     }
 
     @RequiresApi(api = Build.VERSION_CODES.N)
+
     private void createRecyclerView(){
 
         rvPackages = findViewById(R.id.rv_pck);
         rvPackages.setLayoutManager(new LinearLayoutManager(this));
         this.eventHandler = new EventHandler();
         this.adapter = new PackAdapter();
-        eventHandler.setCurrentEventType(EventType.NON_ACTION);
-        eventHandler.handleCurrentEvent();
+        this.eventHandler.handleCurrentEvent(EventType.NON_ACTION);
+
         adapter.setOnUpdaterRecyclerView(() -> runOnUiThread(() -> adapter.notifyDataSetChanged()));
-        packManager.subscribe(adapter);
+        UiUpdater.subscribe(adapter);
 
         this.bindAddButton();
         this.bindToolbar();
@@ -307,6 +315,7 @@ public class ReviewPackages extends BasicsActivity {
 
         DividerItemDecoration decorator =
                 new DividerItemDecoration(this, DividerItemDecoration.VERTICAL);
+
         decorator.setDrawable(getResources().getDrawable(R.drawable.space));
         rvPackages.setLayoutManager(new LinearLayoutManager(this));
         rvPackages.setAdapter(adapter);
@@ -317,17 +326,24 @@ public class ReviewPackages extends BasicsActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if(packManager.isAlive()){
-            packManager.setCurrentActivity(this);
-        }
+        Log.d(TAG_DEBUG, String.valueOf(packManager == null));
         setContentView(R.layout.activity_rv_package);
+        this.UiUpdater = new UpdaterReviewActivity(this,
+                packManager.getPathToRepository(),
+                packManager.getRepWorker());
+
         createRecyclerView();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        packManager.unsubscribe(adapter);
+        UiUpdater.unsubscribe(adapter);
         adapter.getSelectedPacks().clear();
         deactivateSelectionMode();
         // selectedPack.clear();

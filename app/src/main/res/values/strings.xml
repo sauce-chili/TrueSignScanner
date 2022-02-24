@@ -1,6 +1,9 @@
 <resources>
     <string name="app_name">TrueSignScanner</string>
     <string name="title_activity_base">BaseActivity</string>
-    <string name="PackageRV">List package</string>
+    <string name="PackageRV">Packages</string>
     <string name="hint_enter_name_pack">Название пакета</string>
+    <string name="records">Records:</string>
+    <string name="memory">Memory:</string>
+    <string name="date">Date:</string>
 </resources>

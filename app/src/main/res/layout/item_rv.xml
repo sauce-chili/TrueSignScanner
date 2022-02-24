@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    app:cardBackgroundColor="#737373"
+    app:cardBackgroundColor="@color/itemRecyclerPack"
     app:cardCornerRadius="30dp"
     android:padding="3dp">
 
@@ -17,14 +17,18 @@
             android:id="@+id/ic_code"
             android:layout_width="80dp"
             android:layout_height="80dp"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:layout_marginTop="10dp"
-            android:layout_marginEnd="10dp"
+            android:layout_marginEnd="8dp"
             android:layout_marginBottom="10dp"
-            android:src="@drawable/ic_baseline_qr_code_36"
-            app:civ_circle_background_color="#FFEB3B" />
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_datamatrixcode"
+            app:civ_circle_background_color="@color/yellow_true_sign" />
 
-        <RelativeLayout
+
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/info"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:baselineAligned="false"
@@ -32,39 +36,118 @@
 
             <TextView
                 android:id="@+id/name_pack"
-                android:layout_width="180dp"
-                android:layout_height="30dp"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentBottom="true"
-                android:layout_marginStart="5dp"
-                android:layout_marginTop="25dp"
-                android:layout_marginBottom="45dp"
-                android:text="TestName"
-                android:textSize="16sp" />
-
-            <ImageView
-                android:id="@+id/ic_writingPack"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentTop="true"
-                android:layout_alignParentBottom="true"
-                android:layout_marginStart="20dp"
-                android:layout_marginTop="35dp"
-                android:layout_marginBottom="35dp"
-                android:layout_toEndOf="@+id/name_pack"
-                android:visibility="invisible"
-                app:srcCompat="@drawable/ic_baseline_create_28" />
+                android:layout_height="30dp"
+                android:layout_marginStart="5dp"
+                android:ellipsize="marquee"
+                android:singleLine="true"
+                android:text="TestName"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Headline5"
+                android:textColor="#ececec"
+                android:textSize="16sp"
+                app:layout_constrainedWidth="true"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/select_mark"
+                android:layout_marginEnd="20dp"
+                app:layout_constraintHorizontal_bias="0.0"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintVertical_bias="0.3" />
+
+            <TextView
+                android:id="@+id/Records"
+                android:layout_width="wrap_content"
+                android:layout_height="15dp"
+                android:layout_marginStart="5dp"
+                android:layout_marginTop="15dp"
+
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/name_pack"
+                app:layout_constraintVertical_bias="0.0"
+                android:textSize="12sp"
+                android:text="@string/records"
+                />
+
+            <TextView
+                android:id="@+id/numRecords"
+                android:layout_width="wrap_content"
+                android:layout_height="15dp"
+                android:layout_marginStart="1dp"
+                app:layout_constraintBaseline_toBaselineOf="@id/Records"
+                app:layout_constraintTop_toTopOf="@id/Records"
+                app:layout_constraintStart_toEndOf="@id/Records"
+                app:layout_constraintBottom_toTopOf="@id/Records"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:maxWidth="32dp"
+                android:textSize="12sp"
+                android:text=""
+
+                />
+
+            <TextView
+                android:id="@+id/memory"
+                android:layout_width="wrap_content"
+                android:layout_height="15dp"
+                android:layout_marginStart="8dp"
+                app:layout_constraintStart_toEndOf="@id/numRecords"
+                app:layout_constraintTop_toTopOf="@id/Records"
+                app:layout_constraintBottom_toBottomOf="@id/Records"
+                app:layout_constraintBaseline_toBaselineOf="@id/Records"
+                android:textSize="12sp"
+                android:text="@string/memory"
+                />
+            <TextView
+                android:id="@+id/sizeMemory"
+                android:layout_width="wrap_content"
+                android:layout_height="15dp"
+                android:layout_marginStart="1dp"
+                app:layout_constraintStart_toEndOf="@id/memory"
+                app:layout_constraintBaseline_toBaselineOf = "@id/memory"
+                android:maxWidth="42dp"
+                android:textSize="12sp"
+                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"
+                android:text=""
+                />
+
+<!--            <TextView-->
+<!--                android:id="@+id/Date"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="15dp"-->
+<!--                android:layout_marginStart="8dp"-->
+<!--                app:layout_constraintStart_toEndOf="@id/sizeMemory"-->
+<!--                app:layout_constraintTop_toTopOf="@id/memory"-->
+<!--                app:layout_constraintBottom_toBottomOf="@id/memory"-->
+<!--                app:layout_constraintBaseline_toBaselineOf="@id/memory"-->
+<!--                android:textSize="12sp"-->
+<!--                android:text="@string/date"-->
+<!--                />-->
+<!--            <TextView-->
+<!--                android:id="@+id/dateCreate"-->
+<!--                android:layout_width="wrap_content"-->
+<!--                android:layout_height="15dp"-->
+<!--                app:layout_constraintStart_toEndOf="@id/Date"-->
+<!--                android:layout_marginStart="1dp"-->
+<!--                app:layout_constraintTop_toTopOf="@id/Date"-->
+<!--                app:layout_constraintBottom_toBottomOf="@id/Date"-->
+<!--                app:layout_constraintBaseline_toBaselineOf="@id/Date"-->
+<!--                android:textAppearance="@style/TextAppearance.MaterialComponents.Body2"-->
+<!--                android:textSize="12sp"-->
+<!--                android:text="" />-->
 
             <RadioButton
-                android:id="@+id/select_btn"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_marginStart="15dp"
-                android:layout_marginTop="35dp"
-                android:layout_toEndOf="@+id/ic_writingPack"
-                tools:visibility="invisible"/>
+                android:id="@+id/select_mark"
+                android:layout_width="28dp"
+                android:layout_height="28dp"
+                app:layout_constraintEnd_toEndOf="parent"
+                android:layout_marginEnd="34dp"
+                app:layout_constraintBaseline_toBaselineOf="@id/name_pack"
+                android:buttonTint="@color/select"
+                android:visibility="visible"
+                android:checked="true" />
 
-        </RelativeLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

@@ -2,6 +2,7 @@ package com.example.truesignscanner;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.nfc.Tag;
 import android.os.Bundle;
 import android.util.Log;
 
@@ -10,6 +11,7 @@ import androidx.annotation.NonNull;
 import com.budiyev.android.codescanner.CodeScanner;
 import com.budiyev.android.codescanner.CodeScannerView;
 import com.budiyev.android.codescanner.DecodeCallback;
+import com.example.truesignscanner.Managers.PackManager;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.zxing.BarcodeFormat;
 import com.google.zxing.Result;
@@ -17,32 +19,31 @@ import com.google.zxing.Result;
 import java.util.Collections;
 
 public class MainActivity extends BasicsActivity {
-
+    private final static String TAG = "MainActivity";
     private final long delayTimeMillis = 2000;
     private long lastDecodeTimeMillis = 0;
     private CodeScanner mCodeScanner;
     private CodeScannerView camPreview;
     private FloatingActionButton btnGoToReviewPackage;
 
-    private void createCodeScanner(){
+    private void createCodeScanner() {
 
-        if(mCodeScanner != null)
+        if (mCodeScanner != null)
             return;
 
-        Log.d("CreateCS","Starting create code scanner");
-        mCodeScanner = new CodeScanner(MainActivity.this, camPreview,0);
+        Log.d("CreateCS", "Starting create code scanner");
+        mCodeScanner = new CodeScanner(MainActivity.this, camPreview, 0);
         mCodeScanner.setFormats(Collections.singletonList(BarcodeFormat.DATA_MATRIX));
         mCodeScanner.setDecodeCallback(new DecodeCallback() {
             @Override
             public void onDecoded(@NonNull final Result result) {
-                if (System.currentTimeMillis() - lastDecodeTimeMillis > delayTimeMillis)
-                {
+                if (System.currentTimeMillis() - lastDecodeTimeMillis > delayTimeMillis) {
 
-                    Log.d("onDecode","attempt to write data");
-                    runOnUiThread(()->packManager.writeInWritingPackage(result.getText()));
+                    Log.d("onDecode", "attempt to write data");
+                    runOnUiThread(() -> packManager.addRecordInWritingPackage(result.getText()));
                     // Измененеие цвета рамки
-                    Log.d("onDecode","light indication");
-                    new Thread(){
+                    Log.d("onDecode", "light indication");
+                    new Thread() {
                         @Override
                         public synchronized void start() {
                             super.start();
@@ -62,24 +63,26 @@ public class MainActivity extends BasicsActivity {
                     }.start();
 
                     lastDecodeTimeMillis = System.currentTimeMillis();
-                    Log.d("onDecode","recognize time in millis: " + lastDecodeTimeMillis);
-                }else{
-                    Log.d("onDecode","delay time.Start preview");
+                    Log.d("onDecode", "recognize time in millis: " + lastDecodeTimeMillis);
+                } else {
+                    Log.d("onDecode", "delay time.Start preview");
                 }
                 runOnUiThread(() -> mCodeScanner.startPreview());
             }
         });
     }
 
-    private void createBtnGoToReviewPackage(){
+    private void createBtnGoToReviewPackage() {
         btnGoToReviewPackage.setOnClickListener(v -> {
-            startActivity(new Intent(this,ReviewPackages.class)); });
+            Log.d(TAG,String.valueOf(packManager == null));
+            startActivity(new Intent(this, ReviewPackages.class));
+        });
     }
 
-    private void createCameraPreview(){
-        if(PermissionManager.checkCameraPermission(this)){
+    private void createCameraPreview() {
+        if (PermissionManager.checkCameraPermission(this)) {
             createCodeScanner();
-        }else{
+        } else {
             PermissionManager.requestCameraPermission(this, () -> {
                 createCodeScanner();
                 return false;
@@ -87,20 +90,18 @@ public class MainActivity extends BasicsActivity {
         }
     }
 
-    private void runPackManager(){
-        if (!packManager.isAlive()){
-            packManager.setCurrentActivity(MainActivity.this);
-            if(PermissionManager.checkReadStoragePermission(this)
-                    && PermissionManager.checkWriteStoragePermission(this)){
-                packManager.start();
-            }else {
-                PermissionManager.requestReadAndWriteStoragePermission(this,()->{
-                    packManager.start();
-                    return false;
-                });
-            }
+    private void initPackManager() {
+        if (PermissionManager.checkReadStoragePermission(this)
+                && PermissionManager.checkWriteStoragePermission(this)) {
+            packManager = PackManager.getInstance(getApplicationContext());
+        } else {
+            PermissionManager.requestReadAndWriteStoragePermission(this, () -> {
+                packManager = PackManager.getInstance(getApplicationContext());
+                return false;
+            });
         }
     }
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -112,7 +113,7 @@ public class MainActivity extends BasicsActivity {
 
     @Override
     protected void onStart() {
-        this.runPackManager();
+        this.initPackManager();
         this.createBtnGoToReviewPackage();
         this.createCameraPreview();
         super.onStart();
@@ -120,7 +121,7 @@ public class MainActivity extends BasicsActivity {
 
     @Override
     protected void onResume() {
-        if(PermissionManager.checkCameraPermission(this)) {
+        if (PermissionManager.checkCameraPermission(this)) {
             if (mCodeScanner != null) {
                 mCodeScanner.startPreview();
             } else {
@@ -132,7 +133,7 @@ public class MainActivity extends BasicsActivity {
 
     @Override
     protected void onPause() {
-        if (mCodeScanner != null){
+        if (mCodeScanner != null) {
             mCodeScanner.stopPreview();
             mCodeScanner.releaseResources();
         }
@@ -141,7 +142,7 @@ public class MainActivity extends BasicsActivity {
 
     @Override
     protected void onDestroy() {
-        if (mCodeScanner != null){
+        if (mCodeScanner != null) {
             mCodeScanner.stopPreview();
             mCodeScanner.releaseResources();
         }
