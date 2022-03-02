@@ -18,7 +18,7 @@ import de.hdodenhof.circleimageview.CircleImageView;
 
 public class PackViewHolder extends RecyclerView.ViewHolder{
     private TextView namePack;
-    private RadioButton SelectedMark;
+    private RadioButton selectedMark;
     private CircleImageView icPack;
     private TextView numberRecords;
     private TextView memorySize;
@@ -40,14 +40,14 @@ public class PackViewHolder extends RecyclerView.ViewHolder{
     public PackViewHolder(@NonNull View itemView) {
         super(itemView);
         namePack = itemView.findViewById(R.id.name_pack);
-        SelectedMark = itemView.findViewById(R.id.select_mark);
+        selectedMark = itemView.findViewById(R.id.select_mark);
         icPack = itemView.findViewById(R.id.ic_code);
         numberRecords = itemView.findViewById(R.id.numRecords);
         memorySize = itemView.findViewById(R.id.sizeMemory);
     }
 
     public void switchRadioButton(boolean mode){
-        this.SelectedMark.setChecked(mode);
+        this.selectedMark.setChecked(mode);
     }
 
     public void bind(Pack pack){
@@ -64,10 +64,10 @@ public class PackViewHolder extends RecyclerView.ViewHolder{
         memorySize.setText(pack.memorySize);
 
         if(pack.isVisibleRadioButton) {
-            this.SelectedMark.setVisibility(View.VISIBLE);
+            this.selectedMark.setVisibility(View.VISIBLE);
             this.switchRadioButton(pack.isSelected);
         } else {
-            this.SelectedMark.setVisibility(View.INVISIBLE);
+            this.selectedMark.setVisibility(View.INVISIBLE);
         }
 
         if (onItemClickListener != null){
